@@ -1,0 +1,19 @@
+[package]
+name = "marek_live_caption"
+version = "1.0.0"
+authors = ["Marek Gibek <marek-dev@yandex.com>"]
+description = "Desktop live capture application"
+keywords = ["speech", "recognition", "api", "captions"]
+categories = ["accessibility", "multimedia::audio"]
+repository = "https://github.com/marek-g/marek_live_caption"
+edition = "2021"
+license = "AGPL-3.0-or-later"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+futures-util = "0.3"
+marek_speech_recognition_api = "1.0"
+marek_google_speech_recognition = "1.0"
+cpal = "0.14"
+dasp_sample = "0.11"
