@@ -1,11 +1,11 @@
 mod audio_recognizer;
 
+use crate::audio_recognizer::AudioRecognizer;
 use futures_util::stream::StreamExt;
 use std::error::Error;
-use std::time::Duration;
-use std::{future};
+use std::future;
 use std::thread::sleep;
-use crate::audio_recognizer::AudioRecognizer;
+use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
