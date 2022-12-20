@@ -22,7 +22,7 @@ pub struct AudioRecognizer {
 }
 
 impl AudioRecognizer {
-    pub fn new() -> Result<Self, Box<dyn Error>> {
+    pub fn new() -> Result<Self, Box<dyn Error + Send + Sync>> {
         let audio_host = cpal::default_host();
         let recognizer_factory = GoogleRecognizerFactory::new(".", "./SODALanguagePacks")?;
 
@@ -35,7 +35,9 @@ impl AudioRecognizer {
         })
     }
 
-    pub fn start(&mut self) -> Result<UnboundedReceiver<RecognitionEvent>, Box<dyn Error>> {
+    pub fn start(
+        &mut self,
+    ) -> Result<UnboundedReceiver<RecognitionEvent>, Box<dyn Error + Send + Sync>> {
         let (mut audio_device, supported_audio_configs) = self.create_audio_device()?;
         let supported_audio_config = self.get_supported_audio_config(supported_audio_configs)?;
 
@@ -54,7 +56,7 @@ impl AudioRecognizer {
         Ok(event_receiver)
     }
 
-    pub fn stop(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn stop(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
         self.audio_stream = None;
 
         if let Some(recognizer) = self.recognizer.take() {
@@ -67,7 +69,7 @@ impl AudioRecognizer {
     #[cfg(not(target_os = "windows"))]
     fn create_audio_device(
         &mut self,
-    ) -> Result<(Device, Vec<SupportedStreamConfigRange>), Box<dyn Error>> {
+    ) -> Result<(Device, Vec<SupportedStreamConfigRange>), Box<dyn Error + Send + Sync>> {
         let mut device = self
             .audio_host
             .input_devices()?
@@ -84,7 +86,7 @@ impl AudioRecognizer {
     #[cfg(target_os = "windows")]
     fn create_audio_device(
         &mut self,
-    ) -> Result<(Device, Vec<SupportedStreamConfigRange>), Box<dyn Error>> {
+    ) -> Result<(Device, Vec<SupportedStreamConfigRange>), Box<dyn Error + Send + Sync>> {
         // on Windows / WASAPI we ore using output device also for recording
         let device = self
             .audio_host
@@ -97,7 +99,7 @@ impl AudioRecognizer {
     fn get_supported_audio_config(
         &mut self,
         mut supported_audio_configs: Vec<SupportedStreamConfigRange>,
-    ) -> Result<StreamConfig, Box<dyn Error>> {
+    ) -> Result<StreamConfig, Box<dyn Error + Send + Sync>> {
         let target_frequency = 48000;
         let target_format = SampleFormat::I16;
 
@@ -138,7 +140,8 @@ impl AudioRecognizer {
     fn create_recognizer(
         &mut self,
         audio_config: &StreamConfig,
-    ) -> Result<(GoogleRecognizer, UnboundedReceiver<RecognitionEvent>), Box<dyn Error>> {
+    ) -> Result<(GoogleRecognizer, UnboundedReceiver<RecognitionEvent>), Box<dyn Error + Send + Sync>>
+    {
         let mut recognizer_options = RecognizerOptions::default();
         recognizer_options.channel_count = audio_config.channels as i32;
         recognizer_options.sample_rate = audio_config.sample_rate.0 as i32;
@@ -153,7 +156,7 @@ impl AudioRecognizer {
         device: &mut Device,
         stream_config: StreamConfig,
         recognizer: &Arc<Mutex<GoogleRecognizer>>,
-    ) -> Result<Stream, Box<dyn Error>> {
+    ) -> Result<Stream, Box<dyn Error + Send + Sync>> {
         let err_fn = move |err| {
             eprintln!("an error occurred on stream: {}", err);
         };
