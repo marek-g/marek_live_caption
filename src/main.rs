@@ -13,9 +13,8 @@ use std::time::Duration;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut audio_recognizer = AudioRecognizer::new()?;
-    let event_receiver = audio_recognizer.start()?;
+    let event_receiver = audio_recognizer.start().await?;
 
-    //let translator = Arc::new(Mutex::new(TranslateLocally::new()?));
     let translator = Arc::new(Mutex::new(TranslateLocally::new()?));
 
     tokio::spawn(event_receiver.for_each(move |ev| {
@@ -23,12 +22,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         async move {
             //println!("Event: {:?}", ev);
 
-            if let RecognitionEvent::Recognition {
-                text,
-                is_final: _,
-                audio_end_time_usec: _,
-            } = ev
-            {
+            if let RecognitionEvent::Recognition { text, .. } = ev {
                 let mut translator = translator.lock().await;
                 let text_translated = translator.translate(&text, "en", "pl").await;
                 match text_translated {
@@ -41,7 +35,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     sleep(Duration::from_secs(100000));
 
-    audio_recognizer.stop()?;
+    audio_recognizer.stop().await?;
 
     Ok(())
 }

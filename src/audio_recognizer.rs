@@ -4,27 +4,37 @@ use cpal::{
     SupportedStreamConfigRange,
 };
 use futures::channel::mpsc::UnboundedReceiver;
-use marek_google_speech_recognition::{GoogleRecognizer, GoogleRecognizerFactory};
+use marek_google_speech_recognition::GoogleRecognizerFactory;
 use marek_speech_recognition_api::{
     RecognitionEvent, Recognizer, RecognizerFactory, RecognizerOptions,
 };
+use marek_vosk_speech_recognition::{VoskModelInfo, VoskRecognizerFactory};
 use std::cmp::Ordering;
 use std::error::Error;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use tokio::runtime::Runtime;
 
 /// Captures desktop audio and recognizes speech.
 pub struct AudioRecognizer {
     audio_host: Host,
     audio_stream: Option<Stream>,
 
-    recognizer_factory: GoogleRecognizerFactory,
-    recognizer: Option<Arc<Mutex<GoogleRecognizer>>>,
+    recognizer_factory: Box<dyn RecognizerFactory>,
+    recognizer: Option<Arc<Mutex<Box<dyn Recognizer + Send>>>>,
 }
 
 impl AudioRecognizer {
     pub fn new() -> Result<Self, Box<dyn Error + Send + Sync>> {
         let audio_host = cpal::default_host();
-        let recognizer_factory = GoogleRecognizerFactory::new(".", "./SODALanguagePacks")?;
+
+        // let recognizer_factory =
+        //     Box::new(GoogleRecognizerFactory::new(".", "./SODALanguagePacks")?);
+
+        let recognizer_factory = Box::new(VoskRecognizerFactory::new(vec![VoskModelInfo {
+            language: "en-US".to_string(),
+            folder: PathBuf::from("/usr/local/share/vosk-models/small-en-us"),
+        }])?);
 
         Ok(Self {
             audio_host,
@@ -35,7 +45,7 @@ impl AudioRecognizer {
         })
     }
 
-    pub fn start(
+    pub async fn start(
         &mut self,
     ) -> Result<UnboundedReceiver<RecognitionEvent>, Box<dyn Error + Send + Sync>> {
         let (mut audio_device, supported_audio_configs) = self.create_audio_device()?;
@@ -47,7 +57,7 @@ impl AudioRecognizer {
         let audio_stream =
             self.create_audio_stream(&mut audio_device, supported_audio_config, &recognizer)?;
 
-        recognizer.lock().unwrap().start()?;
+        recognizer.lock().unwrap().start().await?;
         audio_stream.play()?;
 
         self.recognizer = Some(recognizer);
@@ -56,11 +66,11 @@ impl AudioRecognizer {
         Ok(event_receiver)
     }
 
-    pub fn stop(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn stop(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
         self.audio_stream = None;
 
         if let Some(recognizer) = self.recognizer.take() {
-            recognizer.lock().unwrap().stop()?;
+            recognizer.lock().unwrap().stop().await?;
         }
 
         Ok(())
@@ -140,10 +150,14 @@ impl AudioRecognizer {
     fn create_recognizer(
         &mut self,
         audio_config: &StreamConfig,
-    ) -> Result<(GoogleRecognizer, UnboundedReceiver<RecognitionEvent>), Box<dyn Error + Send + Sync>>
-    {
+    ) -> Result<
+        (
+            Box<dyn Recognizer + Send>,
+            UnboundedReceiver<RecognitionEvent>,
+        ),
+        Box<dyn Error + Send + Sync>,
+    > {
         let mut recognizer_options = RecognizerOptions::default();
-        recognizer_options.channel_count = audio_config.channels as i32;
         recognizer_options.sample_rate = audio_config.sample_rate.0 as i32;
         let (recognizer, event_receiver) = self
             .recognizer_factory
@@ -155,7 +169,7 @@ impl AudioRecognizer {
         &mut self,
         device: &mut Device,
         stream_config: StreamConfig,
-        recognizer: &Arc<Mutex<GoogleRecognizer>>,
+        recognizer: &Arc<Mutex<Box<dyn Recognizer + Send>>>,
     ) -> Result<Stream, Box<dyn Error + Send + Sync>> {
         let err_fn = move |err| {
             eprintln!("an error occurred on stream: {}", err);
@@ -166,20 +180,14 @@ impl AudioRecognizer {
             {
                 let recognizer = recognizer.clone();
                 move |data: &[i16], _: &_| {
-                    recognizer
-                        .lock()
-                        .unwrap()
-                        .write(Self::i16_to_u8_slice(data))
-                        .unwrap();
+                    let rt = Runtime::new().unwrap();
+                    rt.block_on(async {
+                        recognizer.lock().unwrap().write(data).await.unwrap();
+                    });
                 }
             },
             err_fn,
         )?;
         Ok(stream)
-    }
-
-    fn i16_to_u8_slice(slice: &[i16]) -> &[u8] {
-        let byte_len = 2 * slice.len();
-        unsafe { std::slice::from_raw_parts(slice.as_ptr().cast::<u8>(), byte_len) }
     }
 }
