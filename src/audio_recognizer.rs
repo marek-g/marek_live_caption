@@ -13,7 +13,6 @@ use std::cmp::Ordering;
 use std::error::Error;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use tokio::runtime::Runtime;
 
 /// Captures desktop audio and recognizes speech.
 pub struct AudioRecognizer {
@@ -28,13 +27,13 @@ impl AudioRecognizer {
     pub fn new() -> Result<Self, Box<dyn Error + Send + Sync>> {
         let audio_host = cpal::default_host();
 
-        // let recognizer_factory =
-        //     Box::new(GoogleRecognizerFactory::new(".", "./SODALanguagePacks")?);
+        let recognizer_factory =
+            Box::new(GoogleRecognizerFactory::new(".", "./SODALanguagePacks")?);
 
-        let recognizer_factory = Box::new(VoskRecognizerFactory::new(vec![VoskModelInfo {
-            language: "en-US".to_string(),
-            folder: PathBuf::from("/usr/local/share/vosk-models/small-en-us"),
-        }])?);
+        // let recognizer_factory = Box::new(VoskRecognizerFactory::new(vec![VoskModelInfo {
+        //     language: "en-US".to_string(),
+        //     folder: PathBuf::from("/usr/local/share/vosk-models/small-en-us"),
+        // }])?);
 
         Ok(Self {
             audio_host,
@@ -180,7 +179,10 @@ impl AudioRecognizer {
             {
                 let recognizer = recognizer.clone();
                 move |data: &[i16], _: &_| {
-                    let rt = Runtime::new().unwrap();
+                    let rt = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .unwrap();
                     rt.block_on(async {
                         recognizer.lock().unwrap().write(data).await.unwrap();
                     });
