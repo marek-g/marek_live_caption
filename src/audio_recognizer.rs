@@ -134,7 +134,7 @@ impl AudioRecognizer {
         let frequency = target_frequency
             .max(best_config.min_sample_rate().0)
             .min(best_config.max_sample_rate().0);
-        let mut buffer_size = (frequency * (channels as u32) * 2) / 50;
+        let mut buffer_size = (frequency * (channels as u32) * 2) / 25;
         if let SupportedBufferSize::Range { min, max } = best_config.buffer_size() {
             buffer_size = buffer_size.max(*min).min(*max);
         }
