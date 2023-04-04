@@ -27,13 +27,14 @@ impl AudioRecognizer {
     pub fn new() -> Result<Self, Box<dyn Error + Send + Sync>> {
         let audio_host = cpal::default_host();
 
-        let recognizer_factory =
-            Box::new(GoogleRecognizerFactory::new(".", "./SODALanguagePacks")?);
+        // let recognizer_factory =
+        //     Box::new(GoogleRecognizerFactory::new(".", "./SODALanguagePacks")?);
 
-        // let recognizer_factory = Box::new(VoskRecognizerFactory::new(vec![VoskModelInfo {
-        //     language: "en-US".to_string(),
-        //     folder: PathBuf::from("/usr/local/share/vosk-models/small-en-us"),
-        // }])?);
+        let recognizer_factory = Box::new(VoskRecognizerFactory::new(vec![VoskModelInfo {
+            language: "en-US".to_string(),
+            folder: PathBuf::from("/usr/local/share/vosk-models/small-en-us"),
+            //folder: PathBuf::from("/home/marek/Pobrane/vosk-model-en-us-0.22"),
+        }])?);
 
         Ok(Self {
             audio_host,
