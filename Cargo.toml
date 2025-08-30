@@ -10,6 +10,13 @@ edition = "2021"
 license = "AGPL-3.0-or-later"
 
 [dependencies]
+fui_core = "0.15"
+fui_controls = "0.15"
+fui_macros = "0.4"
+fui_app = "0.16"
+fui_system = "0.14"
+fui_system_core = "0.13"
+typemap = "0.3"
 tokio = { version = "1", features = ["full"] }
 futures = "0.3"
 futures-util = "0.3"

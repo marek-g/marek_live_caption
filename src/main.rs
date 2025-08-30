@@ -1,41 +1,42 @@
 mod audio_recognizer;
-use crate::audio_recognizer::AudioRecognizer;
-use futures_util::lock::Mutex;
-use futures_util::stream::StreamExt;
-use marek_speech_recognition_api::RecognitionEvent;
-use marek_translate_api::TextTranslator;
-use marek_translate_locally::TranslateLocally;
+use fui_app::{Application, Window, WindowOptions};
+use fui_core::spawn_local_and_forget;
 use std::error::Error;
-use std::sync::Arc;
-use std::thread::sleep;
-use std::time::Duration;
+use tokio::task::LocalSet;
 
-#[tokio::main]
+mod main_view_model;
+use main_view_model::MainViewModel;
+
+#[tokio::main()]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    let mut audio_recognizer = AudioRecognizer::new()?;
-    let event_receiver = audio_recognizer.start().await?;
+    LocalSet::new()
+        .run_until(async {
+            let app = Application::new("Marek Live Caption").await?;
 
-    let translator = Arc::new(Mutex::new(TranslateLocally::new()?));
+            let mut window = Window::create(
+                WindowOptions::new()
+                    .with_stay_on_top(true)
+                    .with_translucent_background(fui_system_core::TranslucentEffect::Transparent)
+                    .with_frame_type(fui_system_core::WindowFrameType::Frameless)
+                    .with_title("Marek Live Caption")
+                    .with_size(800, 100),
+            )
+            .await?;
 
-    tokio::spawn(event_receiver.for_each(move |ev| {
-        let translator = translator.clone();
-        async move {
-            //println!("Event: {:?}", ev);
+            let vm = MainViewModel::new();
+            window.set_vm(vm.clone());
 
-            if let RecognitionEvent::Recognition { text, .. } = ev {
-                let mut translator = translator.lock().await;
-                let text_translated = translator.translate(&text, "en", "pl").await;
-                match text_translated {
-                    Ok(text) => println!("{}", text),
-                    Err(err) => println!("Err: {:?}", err),
+            spawn_local_and_forget({
+                let vm = vm.clone();
+                async move {
+                    vm.init().await;
+                    vm.start().await;
                 }
-            };
-        }
-    }));
+            });
 
-    sleep(Duration::from_secs(100000));
+            app.run().await?;
 
-    audio_recognizer.stop().await?;
-
-    Ok(())
+            Ok(())
+        })
+        .await
 }
