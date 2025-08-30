@@ -32,8 +32,10 @@ impl AudioRecognizer {
 
         let recognizer_factory = Box::new(VoskRecognizerFactory::new(vec![VoskModelInfo {
             language: "en-US".to_string(),
-            folder: PathBuf::from("/usr/local/share/vosk-models/small-en-us"),
-            //folder: PathBuf::from("/home/marek/Pobrane/vosk-model-en-us-0.22"),
+            folder: PathBuf::from(
+                "/home/marek/Ext/Src/language/vosk_models/vosk-model-small-en-us-0.15",
+                //"/home/marek/Ext/Src/language/vosk_models/vosk-model-small-pl-0.22",
+            ),
         }])?);
 
         Ok(Self {
