@@ -25,5 +25,5 @@ marek_google_speech_recognition = { version = "2.1", path = "../marek_speech_rec
 marek_vosk_speech_recognition = { version = "2.1", path = "../marek_speech_recognition/marek_vosk_speech_recognition" }
 marek_translate_api = "1.0"
 marek_translate_locally = "1.0.1"
-cpal = "0.14"
+cpal = "0.16"
 dasp_sample = "0.11"

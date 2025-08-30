@@ -192,6 +192,7 @@ impl AudioRecognizer {
                 }
             },
             err_fn,
+            None,
         )?;
         Ok(stream)
     }
